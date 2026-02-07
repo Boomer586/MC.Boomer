@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+
+        .minecraft-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        .glass-panel {
+            background: rgba(30, 30, 30, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .message {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        .hover-glow:hover {
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+            transform: translateY(-2px);
+            transition: all 0.3s ease;
+        }
+
+        .scroll-smooth {
+            scroll-behavior: smooth;
+        }
+
+        #chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #chat-messages::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        #chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(16, 185, 129, 0.5);
+            border-radius: 4px;
+        }
+
+        #chat-messages::-webkit-scrollbar-thumb:hover {
+            background: rgba(16, 185, 129, 0.7);
+        }
+
+        .grid-bg {
+            background-image: 
+                linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: 50px 50px;
+            }
+        }
+
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: scale(1.05);
+            background: rgba(16, 185, 129, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+    <!-- Animated Background -->
+    <div id="particles-container" class="fixed inset-0 grid-bg"></div>
+
+    <!-- Main Container -->
+    <div class="relative z-10 h-screen flex flex-col p-4 max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="glass-panel rounded-2xl p-6 mb-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                        <span class="text-2xl">⛏️</span>
+                    </div>
+                    <div>
+                        <h1 class="minecraft-font text-green-400 text-xl">Minecraft AI</h1>
+                        <p class="text-gray-400 text-sm">Your intelligent Minecraft companion</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="showFeatures()" class="glass-panel px-4 py-2 rounded-lg hover-glow text-sm">
+                        Features
+                    </button>
+                    <button onclick="clearChat()" class="glass-panel px-4 py-2 rounded-lg hover-glow text-sm">
+                        Clear Chat
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex gap-4 overflow-hidden">
+            <!-- Sidebar -->
+            <aside class="glass-panel rounded-2xl p-6 w-64 overflow-y-auto">
+                <h2 class="minecraft-font text-green-400 text-sm mb-4">Quick Actions</h2>
+                <div class="space-y-2">
+                    <button onclick="quickPrompt('What are the best building mods for Minecraft?')" class="w-full text-left glass-panel p-3 rounded-lg hover-glow text-sm feature-card">
+                        🏗️ Building Mods
+                    </button>
+                    <button onclick="quickPrompt('How do I set up a Minecraft server?')" class="w-full text-left glass-panel p-3 rounded-lg hover-glow text-sm feature-card">
+                        🖥️ Server Setup
+                    </button>
+                    <button onclick="quickPrompt('Recommend performance mods for better FPS')" class="w-full text-left glass-panel p-3 rounded-lg hover-glow text-sm feature-card">
+                        ⚡ Performance Mods
+                    </button>
+                    <button onclick="quickPrompt('What mods are similar to Axiom?')" class="w-full text-left glass-panel p-3 rounded-lg hover-glow text-sm feature-card">
+                        🔧 Mod Alternatives
+                    </button>
+                    <button onclick="quickPrompt('Best Fabric mods for 1.20+')" class="w-full text-left glass-panel p-3 rounded-lg hover-glow text-sm feature-card">
+                        🧵 Fabric Mods
+                    </button>
+                    <button onclick="quickPrompt('Top Forge mods for gameplay')" class="w-full text-left glass-panel p-3 rounded-lg hover-glow text-sm feature-card">
+                        ⚒️ Forge Mods
+                    </button>
+                </div>
+
+                <div class="mt-6 pt-6 border-t border-gray-700">
+                    <h3 class="text-green-400 text-sm font-semibold mb-3">Categories</h3>
+                    <div class="space-y-2 text-sm text-gray-300">
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">•</span> Building & Creative
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">•</span> Performance
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">•</span> Utility & QOL
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">•</span> Adventure & Exploration
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-green-400">•</span> Technology
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Chat Area -->
+            <main class="flex-1 glass-panel rounded-2xl flex flex-col overflow-hidden">
+                <!-- Messages -->
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4 scroll-smooth">
+                    <!-- Welcome Message -->
+                    <div class="message text-center py-12">
+                        <div class="text-6xl mb-4">⛏️</div>
+                        <h2 class="minecraft-font text-2xl text-green-400 mb-2">Welcome to Minecraft AI!</h2>
+                        <p class="text-gray-400">Ask me anything about Minecraft mods, server setups, building tips, and more!</p>
+                        <div class="mt-6 flex flex-wrap justify-center gap-3">
+                            <span class="glass-panel px-4 py-2 rounded-lg text-sm">Mod Recommendations</span>
+                            <span class="glass-panel px-4 py-2 rounded-lg text-sm">Server Help</span>
+                            <span class="glass-panel px-4 py-2 rounded-lg text-sm">Building Tips</span>
+                            <span class="glass-panel px-4 py-2 rounded-lg text-sm">Redstone Guides</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="p-6 border-t border-gray-700">
+                    <form onsubmit="sendMessage(event)" class="flex gap-3">
+                        <input 
+                            type="text" 
+                            id="user-input" 
+                            placeholder="Ask about mods, servers, building tips..." 
+                            class="flex-1 glass-panel rounded-xl px-6 py-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            autocomplete="off"
+                        />
+                        <button 
+                            type="submit" 
+                            class="bg-gradient-to-r from-green-500 to-emerald-600 px-8 py-4 rounded-xl hover-glow font-semibold"
+                        >
+                            Send 🚀
+                        </button>
+                    </form>
+                    <p class="text-xs text-gray-500 mt-3 text-center">
+                        Powered by Claude AI • This is a demo interface
+                    </p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Particle system
+        function createParticles() {
+            const container = document.getElementById('particles-container');
+            const particleTypes = ['⛏️', '🟩', '🟫', '💎', '⚒️', '🪓'];
+            
+            setInterval(() => {
+                if (document.querySelectorAll('.particle').length < 15) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.textContent = particleTypes[Math.floor(Math.random() * particleTypes.length)];
+                    particle.style.left = Math.random() * 100 + '%';
+                    particle.style.fontSize = (Math.random() * 20 + 15) + 'px';
+                    particle.style.animationDuration = (Math.random() * 10 + 15) + 's';
+                    particle.style.opacity = Math.random() * 0.3 + 0.1;
+                    
+                    container.appendChild(particle);
+                    
+                    setTimeout(() => particle.remove(), 25000);
+                }
+            }, 2000);
+        }
+
+        // Chat functionality
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'ml-auto' : 'mr-auto'} max-w-3xl`;
+            
+            if (isUser) {
+                messageDiv.innerHTML = `
+                    <div class="flex items-start gap-3 justify-end">
+                        <div class="glass-panel rounded-2xl rounded-tr-sm px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-700">
+                            <p class="text-white">${content}</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                            <span class="text-xl">👤</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                            <span class="text-xl">⛏️</span>
+                        </div>
+                        <div class="glass-panel rounded-2xl rounded-tl-sm px-6 py-4 flex-1">
+                            <div class="text-gray-100 whitespace-pre-wrap">${content}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'typing-indicator';
+            typingDiv.className = 'message mr-auto max-w-3xl';
+            typingDiv.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                        <span class="text-xl">⛏️</span>
+                    </div>
+                    <div class="glass-panel rounded-2xl rounded-tl-sm px-6 py-4">
+                        <div class="typing-indicator">
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const typing = document.getElementById('typing-indicator');
+            if (typing) typing.remove();
+        }
+
+        async function getAIResponse(userMessage) {
+            // This is a demo response. In production, you'd call the Claude API here
+            const responses = {
+                'building': `Here are the best building mods for Minecraft:
+
+🏗️ **Axiom** - Revolutionary building tool with powerful world editing features
+• Instant placement and manipulation
+• Undo/redo functionality
+• Perfect for large-scale projects
+
+🔧 **WorldEdit** - Classic and essential for builders
+• Command-based editing
+• Works with both Forge and Fabric
+• Great for terraforming
+
+✨ **Litematica** - Schematic mod for precise builds
+• Save and load structures
+• Holographic overlay for building
+• Perfect for recreating designs
+
+🎨 **Chisel and Bits** - Create detailed custom blocks
+• Pixel-by-pixel editing
+• Amazing for decorative work
+• Highly creative tool
+
+Would you like more details on any of these mods or recommendations for a specific building style?`,
+                
+                'server': `Here's a comprehensive guide to setting up a Minecraft server:
+
+🖥️ **Server Setup Steps:**
+
+1️⃣ **Choose Your Server Type**
+   • Vanilla - Official Minecraft server
+   • Paper/Spigot - Optimized with plugin support
+   • Forge/Fabric - For modded servers
+
+2️⃣ **System Requirements**
+   • Minimum: 2GB RAM for 5-10 players
+   • Recommended: 4-8GB RAM for better performance
+   • Java 17+ required
+
+3️⃣ **Installation Process**
+   • Download server JAR file
+   • Create a folder for your server
+   • Run the server once to generate files
+   • Edit server.properties for configuration
+   • Accept EULA
+
+4️⃣ **Port Forwarding**
+   • Forward port 25565 in your router
+   • Use your public IP for others to connect
+
+5️⃣ **Essential Plugins/Mods**
+   • EssentialsX - Basic commands
+   • WorldEdit - World management
+   • LuckPerms - Permission management
+
+Need help with a specific step or server type?`,
+
+                'performance': `⚡ Top Performance Mods for Better FPS:
+
+**Essential Performance Mods:**
+
+🚀 **Sodium** (Fabric)
+   • 2-3x FPS improvement
+   • Replaces Minecraft's rendering engine
+   • Compatible with most mods
+
+⚙️ **OptiFine** (Forge)
+   • All-in-one optimization
+   • Shader support
+   • HD textures and customization
+
+🔥 **Lithium** (Fabric)
+   • General game optimization
+   • Works great with Sodium
+   • No visual changes
+
+💾 **FerriteCore** (Both)
+   • Reduces RAM usage by 40%+
+   • Great for modpack performance
+
+📊 **Starlight** (Fabric)
+   • Rewrites lighting engine
+   • Significant chunk loading improvement
+
+⚡ **LazyDFU** (Both)
+   • Faster game startup
+   • Defers DataFixerUpper
+
+**Recommended Combo:**
+Sodium + Lithium + Starlight + FerriteCore for Fabric
+OptiFine for Forge
+
+Try these and let me know your FPS improvements!`,
+
+                'axiom': `🔧 Mods Similar to Axiom:
+
+**Top Alternatives:**
+
+1️⃣ **WorldEdit**
+   • The classic choice
+   • Command-based editing
+   • Extremely powerful for large builds
+   • Available for Forge & Fabric
+
+2️⃣ **Litematica**
+   • Schematic-focused
+   • Holographic build overlay
+   • Perfect for precise recreations
+
+3️⃣ **BuildersWand**
+   • Quick building tool
+   • Extends blocks automatically
+   • Great for walls and floors
+
+4️⃣ **Effortless Building**
+   • Mirror and array modes
+   • Intuitive GUI
+   • Perfect for symmetrical builds
+
+**Comparison:**
+• Axiom: Most modern, best UX, instant manipulation
+• WorldEdit: Most powerful, command-based
+• Litematica: Best for schematics
+• BuildersWand: Simplest, great for basics
+
+Which features of Axiom are most important to you?`,
+
+                'default': `I can help you with:
+
+🏗️ **Building Mods** - Axiom, WorldEdit, Litematica, and more
+⚡ **Performance** - Sodium, OptiFine, optimization tips
+🖥️ **Server Setup** - Complete guides for any server type
+🧵 **Fabric Mods** - Modern, lightweight mod recommendations
+⚒️ **Forge Mods** - Classic mods and modpacks
+🔧 **Utilities** - Quality of life improvements
+🎮 **Gameplay** - Adventure, tech, and content mods
+
+What would you like to know more about?`
+            };
+
+            // Simple keyword matching for demo
+            const lowerMessage = userMessage.toLowerCase();
+            if (lowerMessage.includes('build') || lowerMessage.includes('axiom') || lowerMessage.includes('worldedit')) {
+                return responses.building;
+            } else if (lowerMessage.includes('server')) {
+                return responses.server;
+            } else if (lowerMessage.includes('performance') || lowerMessage.includes('fps') || lowerMessage.includes('lag')) {
+                return responses.performance;
+            } else if (lowerMessage.includes('similar') || lowerMessage.includes('alternative')) {
+                return responses.axiom;
+            }
+            
+            return responses.default;
+        }
+
+        async function sendMessage(event) {
+            event.preventDefault();
+            
+            const message = userInput.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, true);
+            userInput.value = '';
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Get and add AI response
+            const response = await getAIResponse(message);
+            removeTypingIndicator();
+            addMessage(response, false);
+        }
+
+        function quickPrompt(prompt) {
+            userInput.value = prompt;
+            userInput.focus();
+        }
+
+        function clearChat() {
+            chatMessages.innerHTML = `
+                <div class="message text-center py-12">
+                    <div class="text-6xl mb-4">⛏️</div>
+                    <h2 class="minecraft-font text-2xl text-green-400 mb-2">Welcome to Minecraft AI!</h2>
+                    <p class="text-gray-400">Ask me anything about Minecraft mods, server setups, building tips, and more!</p>
+                    <div class="mt-6 flex flex-wrap justify-center gap-3">
+                        <span class="glass-panel px-4 py-2 rounded-lg text-sm">Mod Recommendations</span>
+                        <span class="glass-panel px-4 py-2 rounded-lg text-sm">Server Help</span>
+                        <span class="glass-panel px-4 py-2 rounded-lg text-sm">Building Tips</span>
+                        <span class="glass-panel px-4 py-2 rounded-lg text-sm">Redstone Guides</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showFeatures() {
+            addMessage(`✨ **Minecraft AI Features:**
+
+🤖 **AI-Powered Assistance**
+• Powered by Claude AI
+• Natural conversation
+• Context-aware responses
+
+🔍 **Mod Discovery**
+• Find mods by category
+• Compare similar mods
+• Version compatibility info
+
+🖥️ **Server Support**
+• Setup guides
+• Performance optimization
+• Plugin recommendations
+
+🏗️ **Building Help**
+• Mod recommendations
+• Building techniques
+• Design inspiration
+
+⚡ **Performance Tips**
+• FPS optimization
+• Mod combinations
+• Configuration help
+
+Try asking me anything about Minecraft!`, false);
+        }
+
+        // Initialize
+        createParticles();
+        userInput.focus();
+    </script>
+</body>
+</html>
